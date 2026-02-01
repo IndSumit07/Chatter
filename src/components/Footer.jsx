@@ -29,16 +29,17 @@ export default function Footer() {
                         </p>
                         <div className="flex gap-4">
                             {[
-                                { icon: Twitter, href: "#" },
-                                { icon: Github, href: "#" },
-                                { icon: Instagram, href: "#" },
-                                { icon: Linkedin, href: "#" }
+                                { icon: Twitter, href: "#", color: "#1DA1F2" },
+                                { icon: Github, href: "#", color: "#24292e" },
+                                { icon: Instagram, href: "#", color: "#E4405F" },
+                                { icon: Linkedin, href: "#", color: "#0077B5" }
                             ].map((social, idx) => (
                                 <a
                                     key={idx}
                                     href={social.href}
                                     onClick={playPop}
-                                    className="w-10 h-10 bg-white border-2 border-black rounded-lg flex items-center justify-center shadow-[3px_3px_0px_0px_#000000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_#000000] transition-all hover:bg-[#a881f3] hover:text-white"
+                                    style={{ '--hover-bg': social.color }}
+                                    className="w-10 h-10 bg-white border-2 border-black rounded-lg flex items-center justify-center shadow-[3px_3px_0px_0px_#000000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_#000000] transition-all hover:bg-[var(--hover-bg)] hover:text-white"
                                 >
                                     <social.icon className="w-5 h-5" />
                                 </a>

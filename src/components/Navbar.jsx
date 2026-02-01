@@ -26,9 +26,9 @@ export default function Navbar() {
       </div>
 
       {/* Desktop CTA */}
-      <button onClick={playPop} className="hidden md:block px-6 py-2.5 rounded-full bg-[#ccfd52] border-2 border-black text-black font-bold shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all active:shadow-none active:translate-y-[4px] active:translate-x-[4px]">
+      <Link href="/login" onClick={playPop} className="hidden md:block px-6 py-2.5 rounded-full bg-[#ccfd52] border-2 border-black text-center text-black font-bold shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all active:shadow-none active:translate-y-[4px] active:translate-x-[4px]">
         Let's Talk
-      </button>
+      </Link>
 
       {/* Mobile Menu Toggle */}
       <button
@@ -46,9 +46,9 @@ export default function Navbar() {
           <Link href="#" onClick={playPop} className="p-3 rounded-xl hover:bg-gray-50 font-medium border border-transparent hover:border-gray-200 transition-all">Community</Link>
           <Link href="#" onClick={playPop} className="p-3 rounded-xl hover:bg-gray-50 font-medium border border-transparent hover:border-gray-200 transition-all">Download</Link>
           <Link href="#" onClick={playPop} className="p-3 rounded-xl hover:bg-gray-50 font-medium border border-transparent hover:border-gray-200 transition-all">Support</Link>
-          <button onClick={playPop} className="w-full py-3 rounded-xl bg-[#ccfd52] border-2 border-black font-bold shadow-[4px_4px_0px_0px_#000000] active:shadow-none active:translate-x-[4px] active:translate-y-[4px] transition-all">
+          <Link href="/login" onClick={playPop} className="w-full py-3 rounded-xl bg-[#ccfd52] border-2 border-black font-bold text-center shadow-[4px_4px_0px_0px_#000000] active:shadow-none active:translate-x-[4px] active:translate-y-[4px] transition-all">
             Let's Talk
-          </button>
+          </Link>
         </div>
       )}
     </nav>

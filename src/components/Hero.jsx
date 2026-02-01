@@ -1,6 +1,6 @@
-
 "use client";
 
+import Link from "next/link";
 import { ArrowRight, Play, MessageCircle, Send, Users, Mic, Smile, Hash, Bell, Star, MousePointer2, Music } from "lucide-react";
 import { usePopSound } from "@/hooks/usePopSound";
 
@@ -11,7 +11,7 @@ export default function Hero() {
         <section className="relative w-full max-w-7xl mx-auto px-4 sm:px-8 py-8 md:py-16 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             {/* Left Column: Text Content */}
             <div className="flex flex-col items-start gap-6 z-10">
-                <h1 className="text-5xl md:text-7xl font-semibold text-[#0f172a] leading-[1.1]">
+                <h1 className="text-4xl md:text-7xl font-semibold text-[#0f172a] leading-[1.1]">
                     Seamless <span className="font-bold">Chat</span>
                     <br />
                     Experience
@@ -24,7 +24,7 @@ export default function Hero() {
                     </span>
                 </h1>
 
-                <p className="text-gray-600 text-lg md:text-xl max-w-lg font-medium leading-relaxed">
+                <p className="text-gray-600 text-base md:text-xl max-w-lg font-medium leading-relaxed">
                     No More Endless Email Threads or Missed Messages.
                     Experience Communication As It Should Be With Real-time Messaging,
                     Instant Sharing, Crystal Clear Audio & Unlimited Groups.
@@ -32,9 +32,9 @@ export default function Hero() {
                 </p>
 
                 <div className="flex items-center gap-6 mt-4">
-                    <button onClick={playPop} className="px-8 py-3.5 rounded-full bg-[#a881f3] text-white font-bold text-lg shadow-[4px_4px_0px_0px_#000000] border-2 border-black hover:translate-y-0.5 hover:translate-x-0.5 hover:shadow-[2px_2px_0px_0px_#000000] transition-all active:shadow-none active:translate-y-1 active:translate-x-1">
+                    <Link href="/login" onClick={playPop} className="px-8 py-3.5 rounded-full bg-[#a881f3] text-white font-bold text-center text-lg shadow-[4px_4px_0px_0px_#000000] border-2 border-black hover:translate-y-0.5 hover:translate-x-0.5 hover:shadow-[2px_2px_0px_0px_#000000] transition-all active:shadow-none active:translate-y-1 active:translate-x-1">
                         Start Chatting
-                    </button>
+                    </Link>
 
                     <button onClick={playPop} className="w-14 h-14 rounded-full bg-[#ccfd52] border-2 border-black flex items-center justify-center shadow-[4px_4px_0px_0px_#000000] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_0px_#000000] transition-all active:shadow-none active:translate-y-[4px] active:translate-x-[4px]">
                         <Play className="w-6 h-6 fill-black stroke-black ml-1" />

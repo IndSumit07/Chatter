@@ -86,10 +86,10 @@ export default function FeaturesSection() {
 
                 {/* Header Section */}
                 <div className="text-center mb-16 space-y-4 z-10 hidden md:block">
-                    <h2 className="text-4xl md:text-6xl font-medium text-white tracking-tight">
+                    <h2 className="text-3xl md:text-6xl font-medium text-white tracking-tight">
                         Collaborate With Your Team
                     </h2>
-                    <h2 className="text-4xl md:text-6xl font-bold text-white mb-8">
+                    <h2 className="text-3xl md:text-6xl font-bold text-white mb-8">
                         Like A Pro
                     </h2>
                 </div>
