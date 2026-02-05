@@ -11,7 +11,7 @@ export default function Hero() {
         <section className="relative w-full max-w-7xl mx-auto px-4 sm:px-8 py-8 md:py-16 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             {/* Left Column: Text Content */}
             <div className="flex flex-col items-start gap-6 z-10">
-                <h1 className="text-4xl md:text-7xl font-semibold text-[#0f172a] leading-[1.1]">
+                <h1 className="text-5xl md:text-7xl font-semibold text-[#0f172a] leading-[1.1]">
                     Seamless <span className="font-bold">Chat</span>
                     <br />
                     Experience
@@ -24,7 +24,7 @@ export default function Hero() {
                     </span>
                 </h1>
 
-                <p className="text-gray-600 text-base md:text-xl max-w-lg font-medium leading-relaxed">
+                <p className="text-gray-600 text-lg md:text-xl max-w-lg font-medium leading-relaxed">
                     No More Endless Email Threads or Missed Messages.
                     Experience Communication As It Should Be With Real-time Messaging,
                     Instant Sharing, Crystal Clear Audio & Unlimited Groups.
