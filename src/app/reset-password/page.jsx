@@ -1,5 +1,7 @@
 "use client";
 
+import { Suspense } from "react";
+
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -7,7 +9,7 @@ import { MessageSquare, Lock, ArrowRight, Sparkles } from "lucide-react";
 import { usePopSound } from "@/hooks/usePopSound";
 import toast from "react-hot-toast";
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
     const playPop = usePopSound();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -151,5 +153,14 @@ export default function ResetPasswordPage() {
                 </Link>
             </p>
         </div>
+    );
+
+}
+
+export default function ResetPasswordPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-[#e9e9e9] flex items-center justify-center font-bold text-2xl">Loading...</div>}>
+            <ResetPasswordContent />
+        </Suspense>
     );
 }
