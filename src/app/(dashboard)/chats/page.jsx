@@ -1,5 +1,7 @@
 "use client";
 
+import { Suspense } from "react";
+
 import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -17,7 +19,7 @@ import Ably from "ably";
 import { getChatRoomId } from "@/lib/ably";
 import { usePresence } from "@/contexts/PresenceContext";
 
-export default function ChatsPage() {
+function ChatsContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const selectedUserId = searchParams.get("userId");
@@ -598,5 +600,14 @@ export default function ChatsPage() {
                 )}
             </div>
         </div>
+    );
+
+}
+
+export default function ChatsPage() {
+    return (
+        <Suspense fallback={<div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 animate-spin" /></div>}>
+            <ChatsContent />
+        </Suspense>
     );
 }
