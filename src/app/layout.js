@@ -11,10 +11,17 @@ export const metadata = {
   description: "A Realtime Chat Application",
 };
 
+import { Toaster } from "react-hot-toast";
+
 export default function RootLayout({ children }) {
+  // logic removed as user var was unused
+
   return (
     <html lang="en" className={`${spaceGrotesk.variable}`}>
-      <body className={` antialiased`}>{children}</body>
+      <body className={` antialiased`} suppressHydrationWarning>
+        <Toaster position="top-center" />
+        {children}
+      </body>
     </html>
   );
 }

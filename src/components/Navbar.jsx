@@ -2,12 +2,22 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Menu, X, LogOut, Bell } from "lucide-react";
 import { usePopSound } from "@/hooks/usePopSound";
+import toast from "react-hot-toast";
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
+  const [user, setUser] = useState(null); // No backend - always null
   const playPop = usePopSound();
+  const router = useRouter();
+
+  const handleLogout = () => {
+    setUser(null);
+    toast.success("Logged out successfully");
+    router.push("/login");
+  };
 
   return (
     <nav className="relative flex justify-between items-center px-4 md:px-8 py-6 max-w-7xl mx-auto w-full z-50">
@@ -25,10 +35,12 @@ export default function Navbar() {
         <Link href="#" onClick={playPop} className="px-6 py-2 rounded-full text-gray-600 font-medium hover:text-gray-900 hover:bg-white/80 transition-all hover:scale-105">Support</Link>
       </div>
 
-      {/* Desktop CTA */}
-      <Link href="/login" onClick={playPop} className="hidden md:block px-6 py-2.5 rounded-full bg-[#ccfd52] border-2 border-black text-center text-black font-bold shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all active:shadow-none active:translate-y-[4px] active:translate-x-[4px]">
-        Let's Talk
-      </Link>
+      {/* Desktop CTA / User Profile */}
+      <div className="hidden md:flex items-center gap-4">
+        <Link href="/login" onClick={playPop} className="px-6 py-2.5 rounded-full bg-[#ccfd52] border-2 border-black text-center text-black font-bold shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all active:shadow-none active:translate-y-[4px] active:translate-x-[4px]">
+          Login
+        </Link>
+      </div>
 
       {/* Mobile Menu Toggle */}
       <button
@@ -47,7 +59,7 @@ export default function Navbar() {
           <Link href="#" onClick={playPop} className="p-3 rounded-xl hover:bg-gray-50 font-medium border border-transparent hover:border-gray-200 transition-all">Download</Link>
           <Link href="#" onClick={playPop} className="p-3 rounded-xl hover:bg-gray-50 font-medium border border-transparent hover:border-gray-200 transition-all">Support</Link>
           <Link href="/login" onClick={playPop} className="w-full py-3 rounded-xl bg-[#ccfd52] border-2 border-black font-bold text-center shadow-[4px_4px_0px_0px_#000000] active:shadow-none active:translate-x-[4px] active:translate-y-[4px] transition-all">
-            Let's Talk
+            Login
           </Link>
         </div>
       )}

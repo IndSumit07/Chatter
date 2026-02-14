@@ -1,11 +1,64 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { MessageSquare, Github, Mail, Lock, ArrowRight, Sparkles } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { MessageSquare, Mail, Lock, User, ArrowRight, Sparkles } from "lucide-react";
 import { usePopSound } from "@/hooks/usePopSound";
+import toast from "react-hot-toast";
 
 export default function LoginPage() {
     const playPop = usePopSound();
+    const router = useRouter();
+
+    const [loading, setLoading] = useState(false);
+    const [formData, setFormData] = useState({
+        email: "",
+        password: ""
+    });
+
+    const handleChange = (e) => {
+        setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
+
+    const handleLogin = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+
+        try {
+            const response = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData),
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Store token in localStorage
+                localStorage.setItem('token', data.data.token);
+                localStorage.setItem('user', JSON.stringify(data.data.user));
+
+                toast.success('Welcome back!');
+                router.push('/dashboard');
+            } else {
+                toast.error(data.message || 'Login failed');
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            toast.error('Something went wrong. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleGoogleLogin = () => {
+        playPop();
+        toast.success("Google login (Demo mode - no backend)");
+        router.push("/dashboard");
+    };
 
     return (
         <div className="min-h-screen bg-[#e9e9e9] flex flex-col items-center justify-center p-4 relative overflow-hidden">
@@ -39,7 +92,7 @@ export default function LoginPage() {
                 </div>
 
                 {/* Form */}
-                <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
+                <form className="space-y-6" onSubmit={handleLogin}>
                     {/* Email Field */}
                     <div className="space-y-2">
                         <label className="text-sm font-black text-black uppercase tracking-widest ml-1">Email Address</label>
@@ -49,6 +102,10 @@ export default function LoginPage() {
                             </div>
                             <input
                                 type="email"
+                                name="email"
+                                value={formData.email}
+                                onChange={handleChange}
+                                required
                                 placeholder="name@company.com"
                                 className="w-full bg-gray-50 border-2 border-black rounded-2xl p-4 pl-12 font-bold focus:bg-white focus:outline-none focus:shadow-[4px_4px_0px_0px_#a881f3] transition-all"
                             />
@@ -59,7 +116,7 @@ export default function LoginPage() {
                     <div className="space-y-2">
                         <div className="flex justify-between items-center px-1">
                             <label className="text-sm font-black text-black uppercase tracking-widest">Password</label>
-                            <Link href="#" className="text-xs font-bold text-gray-400 hover:text-black underline underline-offset-4">Forgot?</Link>
+                            <Link href="/forgot-password" onClick={playPop} className="text-xs font-bold text-gray-400 hover:text-black underline underline-offset-4">Forgot?</Link>
                         </div>
                         <div className="relative group">
                             <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-black transition-colors">
@@ -67,6 +124,10 @@ export default function LoginPage() {
                             </div>
                             <input
                                 type="password"
+                                name="password"
+                                value={formData.password}
+                                onChange={handleChange}
+                                required
                                 placeholder="••••••••"
                                 className="w-full bg-gray-50 border-2 border-black rounded-2xl p-4 pl-12 font-bold focus:bg-white focus:outline-none focus:shadow-[4px_4px_0px_0px_#ccfd52] transition-all"
                             />
@@ -75,11 +136,13 @@ export default function LoginPage() {
 
                     {/* Submit Button */}
                     <button
+                        type="submit"
+                        disabled={loading}
                         onClick={playPop}
-                        className="w-full bg-black text-white py-4 rounded-2xl font-black text-lg flex items-center justify-center gap-2 hover:bg-[#0f172a] shadow-[6px_6px_0px_0px_#a881f3] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all group mt-8"
+                        className="w-full bg-black text-white py-4 rounded-2xl font-black text-lg flex items-center justify-center gap-2 hover:bg-[#0f172a] shadow-[6px_6px_0px_0px_#a881f3] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all group mt-8 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        Login to Account
-                        <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                        {loading ? "Logging in..." : "Login to Account"}
+                        {!loading && <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />}
                     </button>
                 </form>
 
@@ -96,7 +159,7 @@ export default function LoginPage() {
                 {/* Social Login */}
                 <div className="flex justify-center">
                     <button
-                        onClick={playPop}
+                        onClick={handleGoogleLogin}
                         className="w-full flex items-center gap-3 bg-white border-2 border-black p-4 rounded-2xl font-black hover:bg-gray-50 shadow-[4px_4px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all justify-center"
                     >
                         <svg className="w-5 h-5" viewBox="0 0 24 24">
