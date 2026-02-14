@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Search, MessageCircle, UserPlus, X } from "lucide-react";
+import { Bell, Search, MessageCircle, UserPlus, X, Settings, LogOut, ChevronDown, Menu } from "lucide-react";
 import { usePopSound } from "@/hooks/usePopSound";
 import { useState, useEffect, useRef } from "react";
 import { authAPI, chatAPI, friendsAPI } from "@/lib/api";
@@ -8,13 +8,15 @@ import { useRouter } from "next/navigation";
 import { usePresence } from "@/contexts/PresenceContext";
 import toast from "react-hot-toast";
 
-export default function DashboardNavbar() {
+export default function DashboardNavbar({ onMenuClick }) {
     const playPop = usePopSound();
     const router = useRouter();
     const { ablyClient } = usePresence();
     const [showNotifications, setShowNotifications] = useState(false);
+    const [showUserDropdown, setShowUserDropdown] = useState(false);
     const [user, setUser] = useState(null);
     const dropdownRef = useRef(null);
+    const userDropdownRef = useRef(null);
 
     // Notifications state
     const [pendingRequests, setPendingRequests] = useState([]);
@@ -28,10 +30,13 @@ export default function DashboardNavbar() {
             fetchNotifications();
         }
 
-        // Close dropdown when clicking outside
+        // Close dropdowns when clicking outside
         function handleClickOutside(event) {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
                 setShowNotifications(false);
+            }
+            if (userDropdownRef.current && !userDropdownRef.current.contains(event.target)) {
+                setShowUserDropdown(false);
             }
         }
         document.addEventListener("mousedown", handleClickOutside);
@@ -91,6 +96,17 @@ export default function DashboardNavbar() {
 
     return (
         <header className="bg-white border-b-[3px] border-black h-20 flex items-center justify-between px-4 md:px-8 sticky top-0 z-40 shadow-sm">
+            {/* Mobile Menu & Title */}
+            <div className="flex items-center gap-3 md:hidden">
+                <button
+                    onClick={onMenuClick}
+                    className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 active:scale-95 transition-transform"
+                >
+                    <Menu className="w-6 h-6" />
+                </button>
+                <div className="font-black text-xl uppercase tracking-tighter">Chatter</div>
+            </div>
+
             {/* Search Bar (Desktop) */}
             <div className="hidden md:flex items-center w-96">
                 <div className="relative w-full group">
@@ -104,9 +120,6 @@ export default function DashboardNavbar() {
                     />
                 </div>
             </div>
-
-            {/* Mobile Title */}
-            <div className="md:hidden font-black text-xl uppercase tracking-tighter">Chatter</div>
 
             {/* Right Actions */}
             <div className="flex items-center gap-4 md:gap-6">
@@ -208,26 +221,57 @@ export default function DashboardNavbar() {
                     )}
                 </div>
 
-                {/* User Profile */}
-                <div
-                    className="flex items-center gap-3 pl-4 border-l-2 border-gray-200 cursor-pointer group"
-                    onClick={() => router.push("/settings")}
-                >
-                    <div className="text-right hidden md:block">
-                        <p className="font-black text-sm leading-none group-hover:text-[#a881f3] transition-colors">
-                            {user?.fullName || "Loading..."}
-                        </p>
-                        <p className="text-xs font-bold text-gray-400">@{user?.username || "user"}</p>
-                    </div>
-                    <div className="w-10 h-10 rounded-full bg-[#a881f3] border-2 border-black shadow-[2px_2px_0px_0px_#000000] flex items-center justify-center group-hover:translate-x-px group-hover:translate-y-px group-hover:shadow-none transition-all overflow-hidden">
-                        {user?.profilePicture ? (
-                            <img src={user.profilePicture} alt={user.fullName} className="w-full h-full object-cover" />
-                        ) : (
-                            <span className="font-black text-white text-lg">
-                                {user?.fullName?.charAt(0).toUpperCase() || "U"}
-                            </span>
-                        )}
-                    </div>
+                {/* User Profile Dropdown */}
+                <div className="relative" ref={userDropdownRef}>
+                    <button
+                        className="flex items-center gap-3 pl-4 border-l-2 border-gray-200 cursor-pointer group transition-all"
+                        onClick={() => setShowUserDropdown(!showUserDropdown)}
+                    >
+                        <div className="text-right hidden md:block">
+                            <p className="font-black text-sm leading-none group-hover:text-[#a881f3] transition-colors">
+                                {user?.fullName || "Loading..."}
+                            </p>
+                            <p className="text-xs font-bold text-gray-400">@{user?.username || "user"}</p>
+                        </div>
+                        <div className="w-10 h-10 rounded-full bg-[#a881f3] border-2 border-black shadow-[2px_2px_0px_0px_#000000] flex items-center justify-center group-hover:translate-x-px group-hover:translate-y-px group-hover:shadow-none transition-all overflow-hidden relative">
+                            {user?.profilePicture ? (
+                                <img src={user.profilePicture} alt={user.fullName} className="w-full h-full object-cover" />
+                            ) : (
+                                <span className="font-black text-white text-lg">
+                                    {user?.fullName?.charAt(0).toUpperCase() || "U"}
+                                </span>
+                            )}
+                        </div>
+                        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showUserDropdown ? "rotate-180" : ""}`} />
+                    </button>
+
+                    {showUserDropdown && (
+                        <div className="absolute right-0 mt-3 w-56 bg-white border-[3px] border-black rounded-2xl shadow-[8px_8px_0px_0px_#000000] overflow-hidden z-50 animate-in slide-in-from-top-2 fade-in duration-200">
+                            <div className="p-4 border-b-2 border-gray-100">
+                                <p className="font-black text-black">{user?.fullName}</p>
+                                <p className="text-xs font-bold text-gray-500 truncate">@{user?.username}</p>
+                            </div>
+                            <div className="p-2 space-y-1">
+                                <button
+                                    onClick={() => {
+                                        router.push("/settings");
+                                        setShowUserDropdown(false);
+                                    }}
+                                    className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-bold text-gray-600 hover:text-black hover:bg-gray-100 transition-colors"
+                                >
+                                    <Settings className="w-4 h-4" />
+                                    Settings
+                                </button>
+                                <button
+                                    onClick={handleLogout}
+                                    className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-bold text-red-500 hover:bg-red-50 transition-colors"
+                                >
+                                    <LogOut className="w-4 h-4" />
+                                    Logout
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </header>

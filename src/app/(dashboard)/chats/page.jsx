@@ -12,6 +12,7 @@ import {
     Loader2,
     Check,
     CheckCheck,
+    ArrowLeft,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { authAPI, chatAPI, friendsAPI } from "@/lib/api";
@@ -376,7 +377,8 @@ function ChatsContent() {
     return (
         <div className="h-[calc(100vh-100px)] flex gap-4">
             {/* Conversations Sidebar */}
-            <div className="w-80 bg-white border-[3px] border-black rounded-3xl shadow-[8px_8px_0px_0px_#000000] flex flex-col overflow-hidden">
+            {/* Conversations Sidebar */}
+            <div className={`bg-white border-[3px] border-black rounded-3xl shadow-[8px_8px_0px_0px_#000000] flex flex-col overflow-hidden ${selectedConversation ? 'hidden md:flex md:w-80' : 'w-full md:w-80 flex-1'}`}>
                 {/* Header */}
                 <div className="p-6 border-b-[3px] border-black">
                     <h2 className="text-2xl font-black mb-4">Messages</h2>
@@ -476,11 +478,19 @@ function ChatsContent() {
             </div>
 
             {/* Chat Window */}
-            <div className="flex-1 bg-white border-[3px] border-black rounded-3xl shadow-[8px_8px_0px_0px_#000000] flex flex-col overflow-hidden">
+            {/* Chat Window */}
+            <div className={`bg-white border-[3px] border-black rounded-3xl shadow-[8px_8px_0px_0px_#000000] flex-col overflow-hidden ${selectedConversation ? 'flex w-full flex-1' : 'hidden md:flex flex-1'}`}>
                 {selectedConversation ? (
                     <>
                         {/* Chat Header */}
-                        <div className="p-6 border-b-[3px] border-black flex items-center gap-3">
+                        {/* Chat Header */}
+                        <div className="p-4 md:p-6 border-b-[3px] border-black flex items-center gap-3">
+                            <button
+                                onClick={() => setSelectedConversation(null)}
+                                className="md:hidden p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors"
+                            >
+                                <ArrowLeft className="w-6 h-6" />
+                            </button>
                             <div className="w-10 h-10 bg-[#a881f3] border-2 border-black rounded-full flex items-center justify-center">
                                 {selectedConversation.user.profilePicture ? (
                                     <img

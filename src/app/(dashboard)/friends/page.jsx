@@ -195,7 +195,7 @@ export default function FriendsPage() {
             </div>
 
             {/* Tabs */}
-            <div className="bg-white border-[3px] border-black rounded-3xl p-2 shadow-[8px_8px_0px_0px_#000000] flex gap-2">
+            <div className="bg-white border-[3px] border-black rounded-3xl p-2 shadow-[8px_8px_0px_0px_#000000] flex flex-col md:flex-row gap-2">
                 <button
                     onClick={() => setActiveTab("friends")}
                     className={`flex-1 py-3 px-6 rounded-2xl font-black transition-all ${activeTab === "friends"
@@ -426,7 +426,7 @@ export default function FriendsPage() {
 
                     {/* Search Bar */}
                     <div className="mb-6">
-                        <div className="flex gap-3">
+                        <div className="flex flex-col md:flex-row gap-3">
                             <div className="flex-1 relative">
                                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                                 <input

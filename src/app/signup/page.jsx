@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -11,6 +11,8 @@ import {
   ArrowRight,
   Star,
   AtSign,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 import { usePopSound } from "@/hooks/usePopSound";
 import toast from "react-hot-toast";
@@ -27,12 +29,60 @@ export default function SignupPage() {
     password: "",
   });
 
+  const [errors, setErrors] = useState({
+    username: "",
+    password: "",
+  });
+
+  const [isFormValid, setIsFormValid] = useState(false);
+
+  // Validation Logic
+  useEffect(() => {
+    const { username, password } = formData;
+    let newErrors = { username: "", password: "" };
+    let valid = true;
+
+    // Username Validation
+    if (username) {
+      if (username.length < 3) {
+        newErrors.username = "At least 3 characters";
+        valid = false;
+      } else if (username.length > 30) {
+        newErrors.username = "Max 30 characters";
+        valid = false;
+      } else if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+        newErrors.username = "Letters, numbers, underscores only";
+        valid = false;
+      }
+    } else {
+      valid = false; // Required
+    }
+
+    // Password Validation
+    if (password) {
+      if (password.length < 6) {
+        newErrors.password = "At least 6 characters";
+        valid = false;
+      }
+    } else {
+      valid = false; // Required
+    }
+
+    // Required fields check
+    if (!formData.fullName || !formData.email) valid = false;
+
+    setErrors(newErrors);
+    setIsFormValid(valid);
+  }, [formData]);
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleSignup = async (e) => {
     e.preventDefault();
+    if (!isFormValid) return;
+
     setLoading(true);
 
     try {
@@ -62,12 +112,6 @@ export default function SignupPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleGoogleSignup = () => {
-    playPop();
-    toast.success("Google signup (Demo mode - no backend)");
-    router.push("/dashboard");
   };
 
   return (
@@ -126,9 +170,20 @@ export default function SignupPage() {
 
           {/* Username Field */}
           <div className="space-y-2">
-            <label className="text-sm font-black text-black uppercase tracking-widest ml-1">
-              Username
-            </label>
+            <div className="flex justify-between items-center ml-1">
+              <label className="text-sm font-black text-black uppercase tracking-widest">
+                Username
+              </label>
+              {formData.username && (
+                <span className={`text-xs font-bold ${errors.username ? "text-red-500" : "text-green-600"} flex items-center gap-1`}>
+                  {errors.username || (
+                    <>
+                      <CheckCircle className="w-3 h-3" /> Looks good
+                    </>
+                  )}
+                </span>
+              )}
+            </div>
             <div className="relative group">
               <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-black transition-colors">
                 <AtSign className="w-5 h-5" />
@@ -140,13 +195,12 @@ export default function SignupPage() {
                 onChange={handleChange}
                 required
                 placeholder="johndoe_123"
-                pattern="[a-zA-Z0-9_]+"
-                minLength="3"
-                maxLength="30"
-                title="Username can only contain letters, numbers, and underscores"
-                className="w-full bg-gray-50 border-2 border-black rounded-2xl p-4 pl-12 font-bold focus:bg-white focus:outline-none focus:shadow-[4px_4px_0px_0px_#ccfd52] transition-all"
+                className={`w-full bg-gray-50 border-2 ${errors.username ? "border-red-500 focus:shadow-[4px_4px_0px_0px_#ef4444]" : "border-black focus:shadow-[4px_4px_0px_0px_#ccfd52]"} rounded-2xl p-4 pl-12 font-bold focus:bg-white focus:outline-none transition-all`}
               />
             </div>
+            <p className="text-xs text-gray-500 font-bold ml-1">
+              3-30 chars, letters, numbers & underscores only
+            </p>
           </div>
 
           {/* Email Field */}
@@ -172,9 +226,20 @@ export default function SignupPage() {
 
           {/* Password Field */}
           <div className="space-y-2">
-            <label className="text-sm font-black text-black uppercase tracking-widest ml-1">
-              Create Password
-            </label>
+            <div className="flex justify-between items-center ml-1">
+              <label className="text-sm font-black text-black uppercase tracking-widest">
+                Create Password
+              </label>
+              {formData.password && (
+                <span className={`text-xs font-bold ${errors.password ? "text-red-500" : "text-green-600"} flex items-center gap-1`}>
+                  {errors.password || (
+                    <>
+                      <CheckCircle className="w-3 h-3" /> Strong enough
+                    </>
+                  )}
+                </span>
+              )}
+            </div>
             <div className="relative group">
               <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-black transition-colors">
                 <Lock className="w-5 h-5" />
@@ -185,19 +250,21 @@ export default function SignupPage() {
                 value={formData.password}
                 onChange={handleChange}
                 required
-                minLength="6"
                 placeholder="••••••••"
-                className="w-full bg-gray-50 border-2 border-black rounded-2xl p-4 pl-12 font-bold focus:bg-white focus:outline-none focus:shadow-[4px_4px_0px_0px_#ccfd52] transition-all"
+                className={`w-full bg-gray-50 border-2 ${errors.password ? "border-red-500 focus:shadow-[4px_4px_0px_0px_#ef4444]" : "border-black focus:shadow-[4px_4px_0px_0px_#ccfd52]"} rounded-2xl p-4 pl-12 font-bold focus:bg-white focus:outline-none transition-all`}
               />
             </div>
+            <p className="text-xs text-gray-500 font-bold ml-1">
+              Must be at least 6 characters
+            </p>
           </div>
 
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !isFormValid}
             onClick={playPop}
-            className="w-full bg-[#ccfd52] text-black py-4 rounded-2xl font-black text-lg flex items-center justify-center gap-2 hover:bg-[#b8e546] border-[3px] border-black shadow-[6px_6px_0px_0px_#000000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all group mt-8 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-[#ccfd52] text-black py-4 rounded-2xl font-black text-lg flex items-center justify-center gap-2 hover:bg-[#b8e546] border-[3px] border-black shadow-[6px_6px_0px_0px_#000000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all group mt-8 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-x-[2px] disabled:translate-y-[2px]"
           >
             {loading ? "Creating Account..." : "Create Free Account"}
             {!loading && (
@@ -206,45 +273,6 @@ export default function SignupPage() {
           </button>
         </form>
 
-        {/* Divider */}
-        <div className="relative my-8">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t-2 border-black/5"></div>
-          </div>
-          <div className="relative flex justify-center">
-            <span className="bg-white px-4 text-xs font-black text-gray-400 uppercase tracking-widest">
-              Or sign up with
-            </span>
-          </div>
-        </div>
-
-        {/* Social Login */}
-        <div className="flex justify-center">
-          <button
-            onClick={handleGoogleSignup}
-            className="w-full flex items-center gap-3 bg-white border-2 border-black p-4 rounded-2xl font-black hover:bg-gray-50 shadow-[4px_4px_0px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all justify-center"
-          >
-            <svg className="w-5 h-5" viewBox="0 0 24 24">
-              <path
-                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                fill="#4285F4"
-              />
-              <path
-                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                fill="#34A853"
-              />
-              <path
-                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"
-                fill="#FBBC05"
-              />
-              <path
-                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                fill="#EA4335"
-              />
-            </svg>
-            Continue with Google
-          </button>
-        </div>
       </div>
 
       {/* Footer Link */}
