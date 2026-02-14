@@ -1,104 +1,103 @@
-import connectDB from "@/lib/mongodb";
+import { NextResponse } from "next/server";
+import dbConnect from "@/lib/mongodb";
 import User from "@/models/User";
-import { verifyToken } from "@/lib/jwt";
+import Message from "@/models/Message";
+import FriendRequest from "@/models/FriendRequest";
+import { verifyJwtToken } from "@/lib/jwt";
+import bcrypt from "bcryptjs";
 
-export async function DELETE(req) {
+export async function DELETE(request) {
   try {
-    // Get token from header
-    const authHeader = req.headers.get("authorization");
-    const token = authHeader?.replace("Bearer ", "");
+    await dbConnect();
 
+    // 1. Auth Check - Token
+    const token = request.headers.get("Authorization")?.split(" ")[1];
     if (!token) {
-      return Response.json(
-        {
-          success: false,
-          message: "No authentication token provided",
-        },
+      return NextResponse.json(
+        { success: false, message: "No token provided" },
         { status: 401 },
       );
     }
 
-    // Verify token
-    const decoded = verifyToken(token);
-
+    const decoded = await verifyJwtToken(token);
     if (!decoded) {
-      return Response.json(
-        {
-          success: false,
-          message: "Invalid or expired token",
-        },
+      return NextResponse.json(
+        { success: false, message: "Invalid token" },
         { status: 401 },
       );
     }
 
-    // Parse request body to get password confirmation
-    const body = await req.json();
-    const { password } = body;
+    const userId = decoded.id;
 
+    // 2. Body Check - Password
+    let password;
+    try {
+      const body = await request.json();
+      password = body.password;
+    } catch (e) {
+      // Password might be passed via query or headers in some weird cases, but body is standard
+    }
+
+    // If password is not in body (some clients strip it for DELETE), verify if we should allow it?
+    // No, security first. We must verify password.
     if (!password) {
-      return Response.json(
-        {
-          success: false,
-          message: "Please provide your password to confirm account deletion",
-        },
+      return NextResponse.json(
+        { success: false, message: "Password is required to delete account" },
         { status: 400 },
       );
     }
 
-    // Connect to database
-    await connectDB();
-
-    // Get user with password
-    const user = await User.findById(decoded.userId).select("+password");
-
+    // 3. User verification
+    // Re-fetch user with password select
+    const user = await User.findById(userId).select("+password");
     if (!user) {
-      return Response.json(
-        {
-          success: false,
-          message: "User not found",
-        },
+      return NextResponse.json(
+        { success: false, message: "User not found" },
         { status: 404 },
       );
     }
 
-    // Verify password
-    const isPasswordValid = await user.comparePassword(password);
-
-    if (!isPasswordValid) {
-      return Response.json(
-        {
-          success: false,
-          message: "Invalid password. Account deletion cancelled.",
-        },
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) {
+      return NextResponse.json(
+        { success: false, message: "Incorrect password" },
         { status: 401 },
       );
     }
 
-    // Delete user account and all associated data
-    await User.findByIdAndDelete(decoded.userId);
+    // 4. Data Deletion (Thorough cleanup)
 
-    // TODO: Delete additional user data if you have related collections
-    // For example:
-    // await Message.deleteMany({ userId: decoded.userId });
-    // await FriendRequest.deleteMany({ $or: [{ from: decoded.userId }, { to: decoded.userId }] });
-    // await ChatRoom.updateMany({}, { $pull: { members: decoded.userId } });
+    // A. Delete all messages sent by OR received by the user
+    // This removes the core conversation content for this user
+    await Message.deleteMany({
+      $or: [{ senderId: userId }, { receiverId: userId }],
+    });
 
-    return Response.json(
-      {
-        success: true,
-        message: "Account deleted successfully",
-      },
-      { status: 200 },
+    // B. Remove user from 'readBy' arrays in any remaining messages (e.g. group chats if implemented later)
+    await Message.updateMany({ readBy: userId }, { $pull: { readBy: userId } });
+
+    // C. Remove user's reactions from any remaining messages
+    await Message.updateMany(
+      { "reactions.userId": userId },
+      { $pull: { reactions: { userId: userId } } },
     );
+
+    // D. Delete all friend requests (sent OR received)
+    await FriendRequest.deleteMany({
+      $or: [{ from: userId }, { to: userId }],
+    });
+
+    // E. Delete the User account itself
+    await User.findByIdAndDelete(userId);
+
+    return NextResponse.json({
+      success: true,
+      message: "Account and all associated data permanently deleted",
+    });
   } catch (error) {
     console.error("Delete account error:", error);
-    return Response.json(
-      {
-        success: false,
-        message: "Failed to delete account. Please try again.",
-        error:
-          process.env.NODE_ENV === "development" ? error.message : undefined,
-      },
+    return NextResponse.json(
+      { success: false, message: "Server error during account deletion" },
       { status: 500 },
     );
   }
