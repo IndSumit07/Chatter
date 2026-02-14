@@ -3,7 +3,7 @@ import dbConnect from "@/lib/mongodb";
 import User from "@/models/User";
 import Message from "@/models/Message";
 import FriendRequest from "@/models/FriendRequest";
-import { verifyJwtToken } from "@/lib/jwt";
+import { verifyToken } from "@/lib/jwt";
 import bcrypt from "bcryptjs";
 
 export async function DELETE(request) {
@@ -19,7 +19,7 @@ export async function DELETE(request) {
       );
     }
 
-    const decoded = await verifyJwtToken(token);
+    const decoded = verifyToken(token);
     if (!decoded) {
       return NextResponse.json(
         { success: false, message: "Invalid token" },
@@ -27,7 +27,7 @@ export async function DELETE(request) {
       );
     }
 
-    const userId = decoded.id;
+    const userId = decoded.userId;
 
     // 2. Body Check - Password
     let password;
@@ -38,8 +38,6 @@ export async function DELETE(request) {
       // Password might be passed via query or headers in some weird cases, but body is standard
     }
 
-    // If password is not in body (some clients strip it for DELETE), verify if we should allow it?
-    // No, security first. We must verify password.
     if (!password) {
       return NextResponse.json(
         { success: false, message: "Password is required to delete account" },
@@ -65,15 +63,14 @@ export async function DELETE(request) {
       );
     }
 
-    // 4. Data Deletion (Thorough cleanup)
+    // 4. Data Deletion
 
     // A. Delete all messages sent by OR received by the user
-    // This removes the core conversation content for this user
     await Message.deleteMany({
       $or: [{ senderId: userId }, { receiverId: userId }],
     });
 
-    // B. Remove user from 'readBy' arrays in any remaining messages (e.g. group chats if implemented later)
+    // B. Remove user from 'readBy' arrays in any remaining messages
     await Message.updateMany({ readBy: userId }, { $pull: { readBy: userId } });
 
     // C. Remove user's reactions from any remaining messages
