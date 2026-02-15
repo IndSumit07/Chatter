@@ -12,6 +12,8 @@ import {
     Eye,
     EyeOff,
     LogOut,
+    Camera,
+    X,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { authAPI } from "@/lib/api";
@@ -37,11 +39,13 @@ export default function SettingsPage() {
     const [profileData, setProfileData] = useState({
         fullName: "",
         username: "",
+        profilePicture: "",
     });
 
     // Delete account state
     const [deletePassword, setDeletePassword] = useState("");
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [showRemovePicModal, setShowRemovePicModal] = useState(false);
     const [deleteLoading, setDeleteLoading] = useState(false);
 
     useEffect(() => {
@@ -54,6 +58,7 @@ export default function SettingsPage() {
         setProfileData({
             fullName: storedUser.fullName || "",
             username: storedUser.username || "",
+            profilePicture: storedUser.profilePicture || "",
         });
     }, [router]);
 
@@ -90,6 +95,29 @@ export default function SettingsPage() {
             }
         } catch (error) {
             console.error("Password change error:", error);
+            toast.error("Something went wrong");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleRemoveProfilePicture = async () => {
+        setShowRemovePicModal(false);
+        setLoading(true);
+        try {
+            // Pass empty string to remove
+            const response = await authAPI.updateProfile({ ...profileData, profilePicture: "" });
+
+            if (response.success) {
+                toast.success("Profile picture removed");
+                localStorage.setItem("user", JSON.stringify(response.data.user));
+                setUser(response.data.user);
+                setProfileData(prev => ({ ...prev, profilePicture: "" }));
+            } else {
+                toast.error(response.message || "Failed to remove profile picture");
+            }
+        } catch (error) {
+            console.error(error);
             toast.error("Something went wrong");
         } finally {
             setLoading(false);
@@ -168,9 +196,81 @@ export default function SettingsPage() {
                 {/* Profile Update Section */}
                 <div className="bg-white border-[3px] border-black rounded-3xl p-6 md:p-8 shadow-[8px_8px_0px_0px_#000000]">
                     <div className="flex items-center gap-3 mb-6">
-                        <div className="w-10 h-10 bg-[#a881f3] border-2 border-black rounded-xl flex items-center justify-center">
-                            <User className="w-5 h-5 text-white" />
+                        <div className="relative group">
+                            <div className="w-20 h-20 bg-[#a881f3] border-2 border-black rounded-xl flex items-center justify-center overflow-hidden">
+                                {profileData.profilePicture ? (
+                                    <img
+                                        src={profileData.profilePicture}
+                                        alt="Profile"
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    <User className="w-8 h-8 text-white" />
+                                )}
+                                <div
+                                    className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded-xl"
+                                    onClick={() => document.getElementById('profile-upload').click()}
+                                >
+                                    <Camera className="w-6 h-6 text-white" />
+                                </div>
+                            </div>
+                            <input
+                                type="file"
+                                id="profile-upload"
+                                className="hidden"
+                                accept="image/*"
+                                onChange={async (e) => {
+                                    const file = e.target.files[0];
+                                    if (!file) return;
+
+                                    if (file.size > 5 * 1024 * 1024) {
+                                        toast.error("Image size must be less than 5MB");
+                                        return;
+                                    }
+
+                                    const toastId = toast.loading("Uploading image...");
+                                    try {
+                                        const formData = new FormData();
+                                        formData.append("file", file);
+
+                                        const res = await fetch("/api/upload", {
+                                            method: "POST",
+                                            body: formData,
+                                        });
+
+                                        const data = await res.json();
+
+                                        if (!res.ok) throw new Error(data.error || "Upload failed");
+
+                                        // Update profile immediately with new URL
+                                        const updateRes = await authAPI.updateProfile({ ...profileData, profilePicture: data.url });
+
+                                        if (updateRes.success) {
+                                            localStorage.setItem("user", JSON.stringify(updateRes.data.user));
+                                            setUser(updateRes.data.user);
+                                            setProfileData(prev => ({ ...prev, profilePicture: data.url }));
+                                            toast.success("Profile picture updated!", { id: toastId });
+                                        } else {
+                                            throw new Error(updateRes.message || "Failed to update profile");
+                                        }
+
+                                    } catch (error) {
+                                        console.error(error);
+                                        toast.error(error.message || "Upload failed", { id: toastId });
+                                    }
+                                }}
+                            />
                         </div>
+                        {profileData.profilePicture && (
+                            <button
+                                onClick={() => setShowRemovePicModal(true)}
+                                type="button"
+                                className="flex items-center justify-center p-2 bg-red-100 text-red-500 rounded-full hover:bg-red-200 transition-colors"
+                                title="Remove profile picture"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        )}
                         <h2 className="text-2xl font-black">Profile Information</h2>
                     </div>
 
@@ -447,6 +547,40 @@ export default function SettingsPage() {
                                     {deleteLoading ? "Deleting..." : "Delete Forever"}
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Remove Profile Picture Modal */}
+            {showRemovePicModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white border-[3px] border-black rounded-3xl p-8 max-w-sm w-full shadow-[8px_8px_0px_0px_#000000]">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="w-10 h-10 bg-red-100 border-2 border-black rounded-xl flex items-center justify-center">
+                                <Trash2 className="w-5 h-5 text-red-500" />
+                            </div>
+                            <h2 className="text-xl font-black">Remove Picture?</h2>
+                        </div>
+
+                        <p className="text-gray-600 font-bold mb-6">
+                            Are you sure you want to remove your profile picture?
+                        </p>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowRemovePicModal(false)}
+                                className="flex-1 bg-gray-200 text-black py-3 rounded-xl font-black hover:bg-gray-300 border-2 border-black shadow-[2px_2px_0px_0px_#000000] active:translate-x-px active:translate-y-px active:shadow-none transition-all"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleRemoveProfilePicture}
+                                disabled={loading}
+                                className="flex-1 bg-red-500 text-white py-3 rounded-xl font-black hover:bg-red-600 border-2 border-black shadow-[2px_2px_0px_0px_#000000] active:translate-x-px active:translate-y-px active:shadow-none transition-all disabled:opacity-50"
+                            >
+                                {loading ? "Removing..." : "Remove"}
+                            </button>
                         </div>
                     </div>
                 </div>

@@ -13,6 +13,12 @@ import {
     Check,
     CheckCheck,
     ArrowLeft,
+    Paperclip,
+    Image as ImageIcon,
+    MoreVertical,
+    Edit2,
+    Trash2,
+    X,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { authAPI, chatAPI, friendsAPI } from "@/lib/api";
@@ -33,7 +39,12 @@ function ChatsContent() {
     const [newMessage, setNewMessage] = useState("");
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
+    const [editingMessage, setEditingMessage] = useState(null);
+    const [editContent, setEditContent] = useState("");
     const [searchQuery, setSearchQuery] = useState("");
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [messageToDelete, setMessageToDelete] = useState(null);
     const { onlineUsers } = usePresence(); // Destructure onlineUsers from usePresence
 
     const messagesEndRef = useRef(null);
@@ -287,11 +298,30 @@ function ChatsContent() {
     const handleSendMessage = async (e) => {
         e.preventDefault();
 
+
         if (!newMessage.trim() || !selectedConversation || sending) return;
 
         const messageContent = newMessage.trim();
+        const tempId = "temp-" + Date.now();
+
+        // Optimistic UI: Create temporary message
+        const optimisticMsg = {
+            _id: tempId,
+            content: messageContent,
+            senderId: { ...currentUser, _id: currentUser.id },
+            receiverId: selectedConversation.user,
+            createdAt: new Date().toISOString(),
+            type: "text",
+            readBy: [],
+            isOptimistic: true
+        };
+
         setNewMessage("");
         setSending(true);
+
+        // Add optimistic message
+        setMessages((prev) => [...prev, optimisticMsg]);
+        scrollToBottom();
 
         try {
             const response = await chatAPI.sendMessage(
@@ -302,10 +332,12 @@ function ChatsContent() {
             if (response.success) {
                 const sentMessage = response.data.message;
 
-                // Add message to local state
-                setMessages((prev) => [...prev, sentMessage]);
+                // Replace optimistic message with real one
+                setMessages((prev) =>
+                    prev.map(m => m._id === tempId ? sentMessage : m)
+                );
 
-                // Publish to Ably channel
+                // Publish to Ably channel (for recipient)
                 if (channelRef.current) {
                     channelRef.current.publish("new-message", sentMessage);
                 }
@@ -319,22 +351,243 @@ function ChatsContent() {
                         message: sentMessage
                     });
                 }
-
-                scrollToBottom();
             } else {
                 toast.error(response.message || "Failed to send message");
-                setNewMessage(messageContent); // Restore message
+                // Remove optimistic message and restore input
+                setMessages((prev) => prev.filter(m => m._id !== tempId));
+                setNewMessage(messageContent);
             }
         } catch (error) {
             console.error("Send message error:", error);
             toast.error("Failed to send message");
-            setNewMessage(messageContent); // Restore message
+            // Remove optimistic message and restore input
+            setMessages((prev) => prev.filter(m => m._id !== tempId));
+            setNewMessage(messageContent);
         } finally {
             setSending(false);
             // Keep input focused for quick messaging - use setTimeout to wait for disabled state to clear
             setTimeout(() => {
                 messageInputRef.current?.focus();
             }, 10);
+        }
+    };
+
+
+
+    // Edit message
+    const handleEditMessage = async (e) => {
+        e.preventDefault();
+        if (!editingMessage || !editContent.trim()) return;
+
+        const originalMessage = editingMessage;
+        const previousMessages = [...messages];
+
+        // Optimistic UI: Update state immediately
+        setMessages((prev) =>
+            prev.map((msg) =>
+                msg._id === editingMessage._id
+                    ? { ...msg, content: editContent, isEdited: true } // Optimistic update
+                    : msg
+            )
+        );
+
+        // Clear edit state
+        setEditingMessage(null);
+        setEditContent("");
+
+        try {
+            const response = await chatAPI.editMessage(originalMessage._id, editContent);
+            if (response.success) {
+                // Determine the correct message object from response
+                // If api return {data: message}, use response.data
+                const updatedMsg = response.data;
+
+                // Update with server confirmed data (timestamps etc)
+                setMessages(prev => prev.map(m => m._id === updatedMsg._id ? updatedMsg : m));
+
+                if (channelRef.current) {
+                    channelRef.current.publish("message-edited", updatedMsg);
+                }
+            } else {
+                // Revert on failure
+                setMessages(previousMessages);
+                toast.error(response.message || "Failed to edit message");
+            }
+        } catch (error) {
+            console.error(error);
+            // Revert on failure
+            setMessages(previousMessages);
+            toast.error("Failed to edit message");
+        }
+    };
+
+    // Delete message
+    // Delete message prompt
+    const handleDeleteMessagePrompt = (messageId) => {
+        setMessageToDelete(messageId);
+        setShowDeleteModal(true);
+    };
+
+    // Confirm Delete message
+    const handleDeleteMessage = async () => {
+        if (!messageToDelete) return;
+
+        const idToDelete = messageToDelete;
+        const previousMessages = [...messages];
+
+        // Optimistic UI: Remove immediately
+        setMessages(prev => prev.filter(m => m._id !== idToDelete));
+        setShowDeleteModal(false);
+        setMessageToDelete(null);
+
+        try {
+            const response = await chatAPI.deleteMessage(idToDelete);
+            if (response.success) {
+                if (channelRef.current) {
+                    channelRef.current.publish("message-deleted", { messageId: idToDelete, userId: currentUser.id });
+                }
+            } else {
+                // Revert on failure
+                setMessages(previousMessages);
+                toast.error(response.message || "Failed to delete message");
+            }
+        } catch (error) {
+            console.error(error);
+            // Revert on failure
+            setMessages(previousMessages);
+            toast.error("Failed to delete message");
+        }
+    };
+
+    // Update image message (replace image)
+    const handleUpdateImage = async (e, messageId) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error("Image size must be less than 5MB");
+            return;
+        }
+
+        const previousMessages = [...messages];
+        // Optimistic UI: Show image immediately using Blob URL
+        const objectUrl = URL.createObjectURL(file);
+        setMessages(prev => prev.map(msg =>
+            msg._id === messageId ? { ...msg, content: objectUrl } : msg
+        ));
+
+        const toastId = toast.loading("Uploading new image...");
+
+        try {
+            const formData = new FormData();
+            formData.append("file", file);
+
+            const res = await fetch("/api/upload", {
+                method: "POST",
+                body: formData,
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) throw new Error(data.error || "Upload failed");
+
+            // Update the message content with new URL
+            const response = await chatAPI.editMessage(messageId, data.url);
+
+            if (response.success) {
+                const updatedMsg = response.data;
+                toast.success("Image updated", { id: toastId });
+
+                // Update with server URL (should be same visual)
+                setMessages((prev) =>
+                    prev.map((msg) =>
+                        msg._id === messageId ? updatedMsg : msg
+                    )
+                );
+
+                if (channelRef.current) {
+                    channelRef.current.publish("message-edited", updatedMsg);
+                }
+            } else {
+                throw new Error(response.message || "Failed to update message");
+            }
+
+        } catch (error) {
+            console.error(error);
+            // Revert on failure
+            setMessages(previousMessages);
+            toast.error(error.message || "Failed to update image", { id: toastId });
+        } finally {
+            // Cleanup
+            URL.revokeObjectURL(objectUrl);
+        }
+    };
+
+
+
+    const handleImageUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file || !selectedConversation) return;
+
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error("Image size must be less than 5MB");
+            return;
+        }
+
+        setIsUploading(true);
+        const toastId = toast.loading("Uploading image...");
+
+        try {
+            const formData = new FormData();
+            formData.append("file", file);
+
+            const res = await fetch("/api/upload", {
+                method: "POST",
+                body: formData,
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) throw new Error(data.error || "Upload failed");
+
+            // Send image message
+            const response = await chatAPI.sendMessage(
+                selectedConversation.user._id,
+                data.url,
+                "image"
+            );
+
+            if (response.success) {
+                const sentMessage = response.data.message;
+                setMessages((prev) => [...prev, sentMessage]);
+
+                if (channelRef.current) {
+                    channelRef.current.publish("new-message", sentMessage);
+                }
+
+                // Publish real-time notification
+                if (ablyRef.current) {
+                    const notifyChannel = ablyRef.current.channels.get(`notifications:${selectedConversation.user._id}`);
+                    notifyChannel.publish("new-notification", {
+                        type: "new_message",
+                        from: currentUser,
+                        message: sentMessage
+                    });
+                }
+
+                scrollToBottom();
+                toast.success("Image sent", { id: toastId });
+            } else {
+                toast.error(response.message || "Failed to send image", { id: toastId });
+            }
+
+        } catch (error) {
+            console.error(error);
+            toast.error(error.message || "Failed to upload image", { id: toastId });
+        } finally {
+            setIsUploading(false);
+            // Reset file input
+            e.target.value = "";
         }
     };
 
@@ -527,28 +780,118 @@ function ChatsContent() {
                         <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
                             {messages.map((msg) => {
                                 const isMine = msg.senderId._id === currentUser.id;
+                                const isEditing = editingMessage?._id === msg._id;
+
                                 return (
                                     <div
                                         key={msg._id}
-                                        className={`flex ${isMine ? "justify-end" : "justify-start"}`}
+                                        className={`flex ${isMine ? "justify-end" : "justify-start"} items-center mb-4 group`}
                                     >
+                                        {/* Message Actions (Left of message for sender) */}
+                                        {isMine && !isEditing && (
+                                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity mr-2">
+                                                {msg.type === "text" && (
+                                                    <button
+                                                        onClick={() => {
+                                                            setEditingMessage(msg);
+                                                            setEditContent(msg.content);
+                                                        }}
+                                                        className="p-2 bg-gray-100 hover:bg-white text-gray-600 rounded-full shadow-sm hover:shadow-md transition-all"
+                                                        title="Edit"
+                                                    >
+                                                        <Edit2 className="w-4 h-4" />
+                                                    </button>
+                                                )}
+                                                {msg.type === "image" && (
+                                                    <>
+                                                        <input
+                                                            type="file"
+                                                            id={`update-img-${msg._id}`}
+                                                            className="hidden"
+                                                            accept="image/*"
+                                                            onChange={(e) => handleUpdateImage(e, msg._id)}
+                                                        />
+                                                        <button
+                                                            onClick={() => document.getElementById(`update-img-${msg._id}`).click()}
+                                                            className="p-2 bg-gray-100 hover:bg-white text-gray-600 rounded-full shadow-sm hover:shadow-md transition-all"
+                                                            title="Replace Image"
+                                                        >
+                                                            <Edit2 className="w-4 h-4" />
+                                                        </button>
+                                                    </>
+                                                )}
+                                                <button
+                                                    onClick={() => handleDeleteMessagePrompt(msg._id)}
+                                                    className="p-2 bg-red-50 hover:bg-red-500 text-red-500 hover:text-white rounded-full shadow-sm hover:shadow-md transition-all"
+                                                    title="Delete"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        )}
+
                                         <div
                                             className={`max-w-[70%] ${isMine
                                                 ? "bg-[#a881f3] text-white"
                                                 : "bg-white border-2 border-black"
-                                                } rounded-2xl p-4 shadow-[4px_4px_0px_0px_#000000]`}
+                                                } rounded-2xl p-4 shadow-[4px_4px_0px_0px_#000000] min-w-[120px] ${msg.isOptimistic ? "opacity-70" : ""}`}
                                         >
-                                            <p className="font-bold break-all">{msg.content}</p>
+                                            {isEditing ? (
+                                                <form onSubmit={handleEditMessage} className="flex flex-col gap-2">
+                                                    <input
+                                                        type="text"
+                                                        value={editContent}
+                                                        onChange={(e) => setEditContent(e.target.value)}
+                                                        className="w-full bg-white/20 text-white placeholder-white/60 border border-white/40 rounded-lg px-2 py-1 outline-none"
+                                                        autoFocus
+                                                    />
+                                                    <div className="flex justify-end gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setEditingMessage(null);
+                                                                setEditContent("");
+                                                            }}
+                                                            className="text-xs font-bold text-white/80 hover:text-white"
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                        <button
+                                                            type="submit"
+                                                            className="text-xs font-black bg-white text-[#a881f3] px-2 py-1 rounded-md"
+                                                        >
+                                                            Save
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            ) : (
+                                                <>
+                                                    {msg.type === "image" ? (
+                                                        <img
+                                                            src={msg.content}
+                                                            alt="Image"
+                                                            className="max-w-xs md:max-w-sm rounded-lg"
+                                                            onLoad={scrollToBottom}
+                                                        />
+                                                    ) : (
+                                                        <p className="font-bold break-all">{msg.content}</p>
+                                                    )}
+                                                </>
+                                            )}
+
                                             <div className="flex items-center justify-end gap-1 mt-1">
-                                                <span
-                                                    className={`text-xs font-bold ${isMine ? "text-white/70" : "text-gray-500"
-                                                        }`}
-                                                >
-                                                    {new Date(msg.createdAt).toLocaleTimeString([], {
-                                                        hour: "2-digit",
-                                                        minute: "2-digit",
-                                                    })}
-                                                </span>
+                                                <div className="flex items-center gap-1">
+                                                    {msg.isEdited && <span className={`text-[10px] italic ${isMine ? "text-white/60" : "text-gray-400"}`}>Edited</span>}
+                                                    <span
+                                                        className={`text-xs font-bold ${isMine ? "text-white/70" : "text-gray-500"
+                                                            }`}
+                                                    >
+                                                        {new Date(msg.createdAt).toLocaleTimeString([], {
+                                                            hour: "2-digit",
+                                                            minute: "2-digit",
+                                                        })}
+                                                    </span>
+                                                </div>
                                                 {isMine && (
                                                     <div className="text-white/70">
                                                         {msg.readBy?.includes(selectedConversation.user._id) ? (
@@ -566,6 +909,42 @@ function ChatsContent() {
                             <div ref={messagesEndRef} />
                         </div>
 
+                        {/* Delete Message Modal */}
+                        {showDeleteModal && (
+                            <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+                                <div className="bg-white border-[3px] border-black rounded-3xl p-8 max-w-sm w-full shadow-[8px_8px_0px_0px_#000000]">
+                                    <div className="flex items-center gap-3 mb-6">
+                                        <div className="w-10 h-10 bg-red-100 border-2 border-black rounded-xl flex items-center justify-center">
+                                            <Trash2 className="w-5 h-5 text-red-500" />
+                                        </div>
+                                        <h2 className="text-xl font-black">Delete Message?</h2>
+                                    </div>
+
+                                    <p className="text-gray-600 font-bold mb-6">
+                                        Are you sure you want to delete this message? This cannot be undone.
+                                    </p>
+
+                                    <div className="flex gap-3">
+                                        <button
+                                            onClick={() => {
+                                                setShowDeleteModal(false);
+                                                setMessageToDelete(null);
+                                            }}
+                                            className="flex-1 bg-gray-200 text-black py-3 rounded-xl font-black hover:bg-gray-300 border-2 border-black shadow-[2px_2px_0px_0px_#000000] active:translate-x-px active:translate-y-px active:shadow-none transition-all"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={handleDeleteMessage}
+                                            className="flex-1 bg-red-500 text-white py-3 rounded-xl font-black hover:bg-red-600 border-2 border-black shadow-[2px_2px_0px_0px_#000000] active:translate-x-px active:translate-y-px active:shadow-none transition-all"
+                                        >
+                                            Delete
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Message Input */}
                         <form
                             onSubmit={handleSendMessage}
@@ -580,6 +959,27 @@ function ChatsContent() {
                                     placeholder="Type a message..."
                                     className="flex-1 bg-gray-50 border-2 border-black rounded-2xl px-4 py-3 font-bold focus:outline-none focus:shadow-[4px_4px_0px_0px_#ccfd52] transition-all disabled:opacity-50"
                                 />
+
+                                <input
+                                    type="file"
+                                    id="chat-image-upload"
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={handleImageUpload}
+                                    disabled={isUploading || sending}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => document.getElementById('chat-image-upload').click()}
+                                    disabled={isUploading || sending}
+                                    className="bg-gray-100 text-black px-4 py-3 rounded-2xl font-black border-[3px] border-black shadow-[4px_4px_0px_0px_#000000] hover:shadow-[2px_2px_0px_0px_#000000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                                >
+                                    {isUploading ? (
+                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                    ) : (
+                                        <Paperclip className="w-5 h-5" />
+                                    )}
+                                </button>
                                 <button
                                     type="submit"
                                     disabled={!newMessage.trim() || sending}

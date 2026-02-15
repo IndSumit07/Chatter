@@ -62,6 +62,21 @@ export async function DELETE(req) {
     if (!message.deletedBy.includes(decoded.userId)) {
       message.deletedBy.push(decoded.userId);
       await message.save();
+
+      // If message is an image and user is the sender, delete from Cloudinary
+      // NOTE: This assumes that if the sender deletes it, it should be deleted from storage.
+      // This might affect the receiver if they haven't deleted it yet, but fits the "delete assets" requirement.
+      if (
+        message.type === "image" &&
+        message.senderId.toString() === decoded.userId
+      ) {
+        try {
+          const { deleteImage } = await import("@/lib/cloudinary");
+          await deleteImage(message.content);
+        } catch (err) {
+          console.error("Failed to delete image from Cloudinary:", err);
+        }
+      }
     }
 
     return Response.json(

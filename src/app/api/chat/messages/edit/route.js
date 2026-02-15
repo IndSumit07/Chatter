@@ -80,11 +80,29 @@ export async function PUT(req) {
       );
     }
 
+    const oldContent = message.content;
+    const wasImage = message.type === "image";
+
     // Update message
     message.content = newContent.trim();
     message.isEdited = true;
     message.editedAt = new Date();
     await message.save();
+
+    // If it was an image and is being replaced (logic assumes newContent is new URL)
+    // In our frontend impl, we only call editMessage with URL if type was image
+    if (
+      wasImage &&
+      message.senderId.toString() === decoded.userId &&
+      oldContent !== newContent
+    ) {
+      try {
+        const { deleteImage } = await import("@/lib/cloudinary");
+        await deleteImage(oldContent);
+      } catch (err) {
+        console.error("Failed to delete old image:", err);
+      }
+    }
 
     // Populate sender and receiver
     await message.populate("senderId", "fullName username profilePicture");

@@ -32,10 +32,14 @@ export async function PUT(req) {
     }
 
     // Parse request body
-    const { fullName, username } = await req.json();
+    const { fullName, username, profilePicture } = await req.json();
 
     // Validate input - at least one field must be provided
-    if (!fullName && !username) {
+    if (
+      fullName === undefined &&
+      username === undefined &&
+      profilePicture === undefined
+    ) {
       return Response.json(
         {
           success: false,
@@ -107,12 +111,31 @@ export async function PUT(req) {
     const updateData = {};
     if (fullName !== undefined) updateData.fullName = fullName.trim();
     if (username !== undefined) updateData.username = username.toLowerCase();
+    if (profilePicture !== undefined)
+      updateData.profilePicture = profilePicture;
+
+    // Check for old profile picture if updating
+    let oldProfilePicture = null;
+    if (profilePicture !== undefined) {
+      const currentUser = await User.findById(decoded.userId);
+      if (currentUser) oldProfilePicture = currentUser.profilePicture;
+    }
 
     // Update user
     const user = await User.findByIdAndUpdate(decoded.userId, updateData, {
       new: true,
       runValidators: true,
     }).select("-password");
+
+    // Delete old profile picture if it was updated and existed
+    if (
+      user &&
+      oldProfilePicture &&
+      oldProfilePicture !== user.profilePicture
+    ) {
+      const { deleteImage } = await import("@/lib/cloudinary");
+      await deleteImage(oldProfilePicture);
+    }
 
     if (!user) {
       return Response.json(
